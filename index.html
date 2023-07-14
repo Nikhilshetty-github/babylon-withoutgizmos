@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Babylon.js Bounding Box Example</title>
+    <style>
+        canvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', function () {
+            var canvas = document.getElementById('renderCanvas');
+            var engine = new BABYLON.Engine(canvas, true);
+
+            var createScene = function () {
+                var scene = new BABYLON.Scene(engine);
+                var camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 4, 10, new BABYLON.Vector3(0, 0, 0), scene);
+                var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+                var ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 10, height: 10 }, scene);
+                var box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
+                var boundingBoxMesh = BABYLON.MeshBuilder.CreateBox("boundingBox", { size: 1 }, scene);
+                var wireframeMaterial = new BABYLON.StandardMaterial("wireframeMaterial", scene);
+
+                boundingBoxMesh.isVisible = false;
+                camera.rotation = new BABYLON.Vector3(0, 0, 0);
+                light.intensity = 0.7;
+                box.position = new BABYLON.Vector3(0, 1, 0);
+
+                var material = new BABYLON.StandardMaterial("material", scene);
+                material.diffuseColor = new BABYLON.Color3(1, 0, 0);
+                box.material = material;
+
+                var initialBoundingBox = new BABYLON.BoundingBox(box.getBoundingInfo().minimum, box.getBoundingInfo().maximum);
+                
+                wireframeMaterial.wireframe = true;
+                boundingBoxMesh.material = wireframeMaterial;
+
+                function updateBoundingBox() {
+                    var boundingBox = box.getBoundingInfo().boundingBox;
+                    boundingBoxMesh.position = boundingBox.centerWorld;
+                    boundingBoxMesh.scaling = boundingBox.maximumWorld.subtract(boundingBox.minimumWorld);
+                }
+
+                function onPointerDown(event) {
+                    var pickResult = scene.pick(event.clientX, event.clientY);
+                    if (pickResult.hit && pickResult.pickedMesh === box) {
+                        var boundingBox = box.getBoundingInfo().boundingBox;
+                        console.log(boundingBox);
+                        var diffX = boundingBox.maximumWorld.x - boundingBox.minimumWorld.x;
+                        var diffY = boundingBox.maximumWorld.y - boundingBox.minimumWorld.y;
+                        var diffZ = boundingBox.maximumWorld.z - boundingBox.minimumWorld.z;
+                        var aspectRatio = diffY / diffX;
+
+                        var initialPointerX = event.clientX;
+                        var initialPointerY = event.clientY;
+                        var initialDiffX = diffX;
+                        var initialDiffY = diffY;
+                        var initialDiffZ = diffZ;
+                        var initialAspectRatio = aspectRatio;
+
+                        boundingBoxMesh.isVisible = true;
+                        updateBoundingBox();
+
+                        function onPointerMove(moveEvent) {
+                            var pointerDiffX = moveEvent.clientX - initialPointerX;
+                            var pointerDiffY = moveEvent.clientY - initialPointerY;
+
+                            diffX = initialDiffX + pointerDiffX / 10;
+                            diffY = initialDiffY + pointerDiffY / 10;
+                            diffZ = initialDiffZ + pointerDiffY / 10 * initialAspectRatio;
+
+                            box.scaling.x = diffX / initialDiffX;
+                            box.scaling.y = diffY / initialDiffY;
+                            box.scaling.z = diffZ / initialDiffZ;
+
+                            updateBoundingBox();
+                        }
+
+                        function onPointerUp() {
+                            window.removeEventListener('pointermove', onPointerMove);
+                            window.removeEventListener('pointerup', onPointerUp);
+
+                            boundingBoxMesh.isVisible = false;
+                        }
+
+                        window.addEventListener('pointermove', onPointerMove);
+                        window.addEventListener('pointerup', onPointerUp);
+                    }
+                }
+                window.addEventListener('pointerdown', onPointerDown);
+
+                return scene;
+            };
+
+            var scene = createScene();
+
+            engine.runRenderLoop(function () {
+                scene.render();
+            });
+
+            window.addEventListener('resize', function () {
+                engine.resize();
+            });
+        });
+    </script>
+    <canvas id="renderCanvas"></canvas>
+</body>
+</html>
